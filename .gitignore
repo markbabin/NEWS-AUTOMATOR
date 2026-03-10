@@ -1,0 +1,20 @@
+# Video input files
+input/*
+!input/.gitkeep
+
+# Cached transcripts
+transcripts/*
+!transcripts/.gitkeep
+
+# Excel output
+output/*
+!output/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.DS_Store
+
+# MLX model cache
+~/.cache/huggingface/

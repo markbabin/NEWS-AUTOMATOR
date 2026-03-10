@@ -1,0 +1,121 @@
+# News Monitor Configuration
+
+# Input folder for video files
+input_dir: "input"
+
+# Where to save cached transcripts (JSON)
+transcripts_dir: "transcripts"
+
+# Where to save Excel output
+output_dir: "output"
+
+# Output Excel filename (will be created/appended)
+output_file: "news_segments.xlsx"
+
+# Whisper model size: tiny, base, small, medium, large-v2, large-v3
+# large-v3 is best for Slovenian, but slower. Use medium for faster runs.
+whisper_model: "large-v2"
+
+# Language for transcription (sl = Slovenian)
+language: "sl"
+
+# File naming convention: how to parse date/channel/show from filename
+# Expected format: YYYY-MM-DD_CHANNEL_SHOWNAME.ext
+# Example: 2024-01-15_RTV_Dnevnik.mp4
+# Set to "manual" to be prompted for metadata when filename doesn't match
+filename_format: "YYYY-MM-DD_CHANNEL_SHOWNAME"
+
+# Custom instructions passed directly to Claude for topic detection.
+# Use this to fine-tune behavior without touching any code.
+instructions: |
+  - Round all start and end timecodes to the nearest 5 seconds (e.g. 00:03:47 → 00:03:45, 00:06:12 → 00:06:10).
+  - Include the anchor's introduction of the topic as part of the segment start, not just the reporter package.
+  - If two segments about the same topic are within 30 seconds of each other, treat them as one continuous segment.
+
+# Per-show transcription rules (matched case-insensitively against show name in filename)
+show_rules:
+  "24ur":
+    transcribe_last_minutes: 30
+  "24ur vikend":
+    transcribe_last_minutes: 30
+
+# Topics to detect in news segments
+# Each topic has:
+#   name: short label used in the Excel output
+#   description: plain-language description for Claude (be specific)
+#   keywords: optional hints (Claude uses these but also does semantic matching)
+#   instructions: optional per-topic rules for Claude (overrides or adds to global instructions)
+topics:
+  - name: "KZS"
+    description: "Košarkarska zveza Slovenije (Slovenian Basketball Association) - any news about Slovenian basketball federation, national basketball team, basketball competitions, basketball players representing Slovenia, KZS events or decisions"
+    keywords: ["KZS", "košarkarska zveza", "košarkarji", "košarka", "reprezentanca"]
+    instructions: "Make sure the segment is about the National basketball team not a slovenian club or a segment about Luka doncic in NBA. if the segment is about female team just mark it with KZS/z instead of just KZS"
+
+  - name: "SZS/alpsko"
+    description: "News about slovenian alpine skiing team"
+    keywords: ["Ilka Štuhec", "Zan Kranjec", "Miha Hrobat", "Smuk", "veleslalom", "slovenska smučarska zveza"]
+    instructions: "Set the 'Oznaka' field to 'SZS/alpsko z' for women, 'SZS/alpsko m' for men, 'SZS/alpsko mes' if both genders are covered. Always fill in Oznaka."
+    extra_fields:
+      - name: "Oznaka"
+        description: "Gendered label for this segment: 'SZS/alpsko m' for men, 'SZS/alpsko z' for women, 'SZS/alpsko mes' for mixed."
+
+  - name: "SZS/skoki"
+    description: "News about Slovenian ski jumping team"
+    keywords: ["Skakalci", "Domen Prevc", "Nika Prevc", "Ema Klinec", "skakalke", "Nika Vodan", "Anze Lanisek", "Timi Zajc", "Robert Hrgota", "smucarski skoki", "Peter Prevc"]
+    instructions: "Set the 'Oznaka' field to 'SZS/skoki z' for women, 'SZS/skoki m' for men, 'SZS/skoki mes' if both genders are covered. Always fill in Oznaka."
+    extra_fields:
+      - name: "Oznaka"
+        description: "Gendered label for this segment: 'SZS/skoki m' for men, 'SZS/skoki z' for women, 'SZS/skoki mes' for mixed."
+
+  - name: "SZS/biatlon"
+    description: "News about Slovenian biathlon team - any news about Slovenian biathletes, biathlon races, results or events"
+    keywords: ["biatlon", "biatlonci", "biatlonke", "Jakov Fak", "Miha Dovžan", "Polona Klemenčič", "Lisa Theresa Hauser"]
+    instructions: "Set the 'Oznaka' field to 'SZS/biatlon z' for women, 'SZS/biatlon m' for men, 'SZS/biatlon mes' if both genders are covered. Always fill in Oznaka."
+    extra_fields:
+      - name: "Oznaka"
+        description: "Gendered label for this segment: 'SZS/biatlon m' for men, 'SZS/biatlon z' for women, 'SZS/biatlon mes' for mixed."
+
+  - name: "OZS"
+    description: "Odbojkarska zveza Slovenije (Slovenian Volleyball Association) - any news about Slovenian volleyball federation, national volleyball team (men or women), volleyball competitions or OZS events"
+    keywords: ["OZS", "odbojkarska zveza", "odbojkarji", "odbojkarice", "odbojka", "slovenska odbojkarska reprezentanca"]
+    instructions: "if the segment is about the female volleyball team mark it with OZS/z and if its about the mens team use OZS/m. Always tag gender."
+
+  - name: "RZS"
+    description: "Rokometna zveza Slovenije (Slovenian Handball Association) - any news about Slovenian handball federation, national handball team (men or women), handball competitions or RZS events"
+    keywords: ["RZS", "rokometna zveza", "rokometaši", "rokometašice", "rokomet", "slovenska rokometna reprezentanca"]
+    instructions: "if the segment is about the female handball team mark it with RZS/z and if its about the mens team use RZS/m. Always tag gender."
+
+  - name: "PLT"
+    description: "Prva liga Telemach - Slovenian top football league, any news about league matches, standings, clubs competing in Prva liga Telemach"
+    keywords: ["Prva liga", "Prva liga Telemach", "PLT", "NK Olimpija", "NK Maribor", "NK Celje", "NK Koper", "NK Domžale", "NK Mura", "slovensko prvenstvo"]
+    instructions: "Only include segments specifically about the Prva liga Telemach domestic league. Exclude Slovenian national team segments — those belong under NZS."
+    extra_fields:
+      - name: "Kolo"
+        description: "Matchweek number of the season as an integer (e.g. 15). Leave empty if not mentioned or if it is a general league news segment not about a specific round."
+      - name: "Tekma"
+        description: "Abbreviated team matchup using first 3 letters of each club name, lowercase, separated by a dash (e.g. mar-mur for Maribor vs Mura, olm-cel for Olimpija vs Celje, kop-dom for Koper vs Domžale). Leave empty if the segment is not about a specific match."
+
+  - name: "NZS"
+    description: "Nogometna zveza Slovenije (Slovenian Football Association) - any news about the Slovenian national football team, NZS decisions, national team matches, qualifications or tournaments"
+    keywords: ["NZS", "nogometna zveza", "slovenska reprezentanca", "Benjamin Šeško", "Jan Oblak", "Adam Gnezda Čerin", "Andraž Šporar"]
+    instructions: "Only include segments about the national team or NZS federation. Club football in the domestic league belongs under PLT."
+
+  - name: "KK Olimpija"
+    description: "Košarkarski klub Olimpija - any news about basketball club Olimpija, their matches, players, results or events in domestic or European competitions"
+    keywords: ["KK Olimpija", "Olimpija", "košarkarski klub Olimpija", "zmaji", "Liga Nova KBM"]
+    instructions: "Only include if the segment is specifically about KK Olimpija the basketball club. Do not confuse with NK Olimpija (football)."
+
+  - name: "RK Celje"
+    description: "Rokometni klub Celje Pivovarna Laško - any news about handball club RK Celje, their matches, players, results or events in domestic or European competitions (EHF Champions League, SEHA liga)"
+    keywords: ["RK Celje", "Celje Pivovarna Laško", "celjski rokometaši", "EHF", "SEHA"]
+    instructions: "Only include if the segment is specifically about RK Celje the club. National handball team news belongs under RZS/m or RZS/z."
+
+  - name: "SZS/deskanje"
+    description: "News about Slovenian snowboarding team - any news about Slovenian snowboarders, snowboard competitions, results or events"
+    keywords: ["deskanje", "deskarji", "deskarke", "snowboard", "Tim Kevin Ravnjak", "Gloria Kotnik"]
+    instructions: "Set the 'Oznaka' field to 'SZS/deskanje z' for women, 'SZS/deskanje m' for men, 'SZS/deskanje mes' if both genders are covered. Always fill in Oznaka."
+    extra_fields:
+      - name: "Oznaka"
+        description: "Gendered label for this segment: 'SZS/deskanje m' for men, 'SZS/deskanje z' for women, 'SZS/deskanje mes' for mixed."
+
+    # Add more topics as needed following the same format
