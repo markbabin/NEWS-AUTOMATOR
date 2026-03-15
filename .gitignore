@@ -6,6 +6,10 @@ input/*
 transcripts/*
 !transcripts/.gitkeep
 
+# Video clips
+clips/*
+!clips/.gitkeep
+
 # Excel output
 output/*
 !output/.gitkeep

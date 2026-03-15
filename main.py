@@ -17,6 +17,7 @@ Usage:
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -27,6 +28,7 @@ import anthropic
 from transcribe import transcribe_video
 from detect_topics import detect_topics
 from excel_output import append_rows, is_already_processed
+from clip_segments import clip_all_segments
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".mts", ".m2ts", ".wmv", ".flv", ".webm"}
@@ -54,6 +56,26 @@ def parse_filename(stem: str) -> tuple[str, str, str] | None:
     return date_str, channel, show.replace("_", " ")
 
 
+def normalize_show_name(show: str, channel: str) -> str:
+    """Normalize show names to standard display labels."""
+    s = show.lower().strip()
+    if "24ur" in s or "24 ur" in s:
+        return "24Ur"
+    # Šport / Sport followed by a timestamp — check the hour to assign the right show
+    m = re.match(r".*[sš]port\D*(\d{1,2})", s)
+    if m:
+        hour = int(m.group(1))
+        if hour >= 21:
+            return "Odmevi"
+        return "Dnevnik"
+    ch = channel.lower().strip()
+    if "planet" in ch or "planet" in s:
+        return "Planet 18"
+    if "kanal a" in ch:
+        return "Svet"
+    return show
+
+
 def prompt_for_metadata(video_path: Path) -> tuple[str, str, str]:
     """Interactively ask user for date, channel, show name."""
     print(f"\n  Cannot parse metadata from filename: {video_path.name}")
@@ -79,10 +101,12 @@ def process_video(
     base_dir: Path,
     force_transcribe: bool = False,
     force_detect: bool = False,
+    skip_clips: bool = False,
 ) -> int:
     """Process a single video file. Returns number of segments found."""
     transcripts_dir = base_dir / config["transcripts_dir"]
     output_path = base_dir / config["output_dir"] / config["output_file"]
+    clips_dir = base_dir / config.get("clips_dir", "clips")
     topics = config["topics"]
 
     # Parse metadata
@@ -90,6 +114,7 @@ def process_video(
     if meta is None:
         meta = prompt_for_metadata(video_path)
     date_str, channel, show = meta
+    show = normalize_show_name(show, channel)
 
     print(f"\n{'='*60}")
     print(f"  File   : {video_path.name}")
@@ -151,6 +176,18 @@ def process_video(
     if rows_added:
         print(f"  Wrote {rows_added} row(s) to {output_path.name}")
 
+    # Step 4: Cut video clips
+    if not skip_clips and found_any:
+        print(f"  Cutting clips...")
+        clips_count = clip_all_segments(
+            video_path=video_path,
+            clips_dir=clips_dir,
+            date_str=date_str,
+            show=show,
+            topic_segments=topic_results,
+        )
+        print(f"  Created {clips_count} clip(s) in {clips_dir}/")
+
     return rows_added
 
 
@@ -160,6 +197,7 @@ def main():
     parser.add_argument("--file", help="Process a single video file")
     parser.add_argument("--retranscribe", action="store_true", help="Force re-transcription")
     parser.add_argument("--redetect", action="store_true", help="Force re-run topic detection")
+    parser.add_argument("--no-clips", action="store_true", help="Skip cutting video clips")
     parser.add_argument("--list-topics", action="store_true", help="Show configured topics and exit")
     args = parser.parse_args()
 
@@ -218,6 +256,7 @@ def main():
                 base_dir=base_dir,
                 force_transcribe=args.retranscribe,
                 force_detect=args.redetect,
+                skip_clips=args.no_clips,
             )
         except Exception as e:
             print(f"\n  ERROR processing {video_path.name}: {e}")

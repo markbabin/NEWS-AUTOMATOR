@@ -6,6 +6,9 @@ input_dir: "input"
 # Where to save cached transcripts (JSON)
 transcripts_dir: "transcripts"
 
+# Where to save cut video clips (organized by topic)
+clips_dir: "clips"
+
 # Where to save Excel output
 output_dir: "output"
 
@@ -55,25 +58,16 @@ topics:
     description: "News about slovenian alpine skiing team"
     keywords: ["Ilka Štuhec", "Zan Kranjec", "Miha Hrobat", "Smuk", "veleslalom", "slovenska smučarska zveza"]
     instructions: "Set the 'Oznaka' field to 'SZS/alpsko z' for women, 'SZS/alpsko m' for men, 'SZS/alpsko mes' if both genders are covered. Always fill in Oznaka."
-    extra_fields:
-      - name: "Oznaka"
-        description: "Gendered label for this segment: 'SZS/alpsko m' for men, 'SZS/alpsko z' for women, 'SZS/alpsko mes' for mixed."
 
   - name: "SZS/skoki"
     description: "News about Slovenian ski jumping team"
     keywords: ["Skakalci", "Domen Prevc", "Nika Prevc", "Ema Klinec", "skakalke", "Nika Vodan", "Anze Lanisek", "Timi Zajc", "Robert Hrgota", "smucarski skoki", "Peter Prevc"]
     instructions: "Set the 'Oznaka' field to 'SZS/skoki z' for women, 'SZS/skoki m' for men, 'SZS/skoki mes' if both genders are covered. Always fill in Oznaka."
-    extra_fields:
-      - name: "Oznaka"
-        description: "Gendered label for this segment: 'SZS/skoki m' for men, 'SZS/skoki z' for women, 'SZS/skoki mes' for mixed."
 
   - name: "SZS/biatlon"
     description: "News about Slovenian biathlon team - any news about Slovenian biathletes, biathlon races, results or events"
     keywords: ["biatlon", "biatlonci", "biatlonke", "Jakov Fak", "Miha Dovžan", "Polona Klemenčič", "Lisa Theresa Hauser"]
     instructions: "Set the 'Oznaka' field to 'SZS/biatlon z' for women, 'SZS/biatlon m' for men, 'SZS/biatlon mes' if both genders are covered. Always fill in Oznaka."
-    extra_fields:
-      - name: "Oznaka"
-        description: "Gendered label for this segment: 'SZS/biatlon m' for men, 'SZS/biatlon z' for women, 'SZS/biatlon mes' for mixed."
 
   - name: "OZS"
     description: "Odbojkarska zveza Slovenije (Slovenian Volleyball Association) - any news about Slovenian volleyball federation, national volleyball team (men or women), volleyball competitions or OZS events"
@@ -88,7 +82,7 @@ topics:
   - name: "PLT"
     description: "Prva liga Telemach - Slovenian top football league, any news about league matches, standings, clubs competing in Prva liga Telemach"
     keywords: ["Prva liga", "Prva liga Telemach", "PLT", "NK Olimpija", "NK Maribor", "NK Celje", "NK Koper", "NK Domžale", "NK Mura", "slovensko prvenstvo"]
-    instructions: "Only include segments specifically about the Prva liga Telemach domestic league. Exclude Slovenian national team segments — those belong under NZS."
+    instructions: "Only include segments specifically about the Prva liga Telemach domestic league. Exclude Slovenian national team segments — those belong under NZS. Exclude cup matches (Pokal Union / Pokal Slovenije) — those belong under Pokal Union."
     extra_fields:
       - name: "Kolo"
         description: "Matchweek number of the season as an integer (e.g. 15). Leave empty if not mentioned or if it is a general league news segment not about a specific round."
@@ -114,8 +108,10 @@ topics:
     description: "News about Slovenian snowboarding team - any news about Slovenian snowboarders, snowboard competitions, results or events"
     keywords: ["deskanje", "deskarji", "deskarke", "snowboard", "Tim Kevin Ravnjak", "Gloria Kotnik"]
     instructions: "Set the 'Oznaka' field to 'SZS/deskanje z' for women, 'SZS/deskanje m' for men, 'SZS/deskanje mes' if both genders are covered. Always fill in Oznaka."
-    extra_fields:
-      - name: "Oznaka"
-        description: "Gendered label for this segment: 'SZS/deskanje m' for men, 'SZS/deskanje z' for women, 'SZS/deskanje mes' for mixed."
+
+  - name: "Pokal Union"
+    description: "Pokal Union - Slovenian football cup competition (formerly Pokal Slovenije). Any news about cup matches, draws, results, or events related to the Slovenian football cup."
+    keywords: ["Pokal Union", "pokal", "pokalno tekmovanje", "pokal Slovenije", "polfinale", "četrtfinale", "finale pokala"]
+    instructions: "Only include segments specifically about the Slovenian football cup (Pokal Union). Do NOT include regular Prva liga Telemach league matches — those belong under PLT. Cup matches are distinct from league matches even if they feature the same clubs."
 
     # Add more topics as needed following the same format

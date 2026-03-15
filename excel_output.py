@@ -109,35 +109,42 @@ def append_rows(
     wb, ws, all_headers = get_or_create_workbook(output_path, topics)
     extra_field_names = get_all_extra_field_names(topics)
 
-    rows_added = 0
-    current_row = ws.max_row + 1
-
+    # Collect all rows first so we can sort by start timecode
+    pending_rows = []
     for topic_name, segments in topic_segments.items():
         topic_extra_fields = get_extra_fields_for_topic(topic_name, topics)
         for seg in segments:
             # Use Oznaka as the Tema label if present (gender-tagged topics)
             tema = seg.get("Oznaka") or topic_name
             row_data = [date, channel, show, tema]
-            # Extra fields between Tema and Začetek (skip Oznaka — it's already used as Tema)
             for col_name in extra_field_names:
                 if col_name in topic_extra_fields:
                     row_data.append(seg.get(col_name, ""))
                 else:
                     row_data.append("")
             row_data += [seg["start"], seg["end"]]
-            ws.append(row_data)
+            pending_rows.append(row_data)
 
-            if current_row % 2 == 0:
-                for col_idx in range(1, len(all_headers) + 1):
-                    ws.cell(row=current_row, column=col_idx).fill = ALT_ROW_FILL
+    # Sort by start timecode (second-to-last column)
+    pending_rows.sort(key=lambda r: r[-2])
 
+    rows_added = 0
+    current_row = ws.max_row + 1
+
+    for row_data in pending_rows:
+        ws.append(row_data)
+
+        if current_row % 2 == 0:
             for col_idx in range(1, len(all_headers) + 1):
-                ws.cell(row=current_row, column=col_idx).alignment = Alignment(
-                    horizontal="center", vertical="center"
-                )
+                ws.cell(row=current_row, column=col_idx).fill = ALT_ROW_FILL
 
-            current_row += 1
-            rows_added += 1
+        for col_idx in range(1, len(all_headers) + 1):
+            ws.cell(row=current_row, column=col_idx).alignment = Alignment(
+                horizontal="center", vertical="center"
+            )
+
+        current_row += 1
+        rows_added += 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
