@@ -19,6 +19,22 @@ __pycache__/
 *.py[cod]
 *.pyo
 .DS_Store
+venv/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Bundled binaries (platform-specific, not committed)
+ffmpeg
+ffprobe
+ffmpeg.exe
+ffprobe.exe
+
+# App icon (optional, user-provided)
+icon.icns
+icon.ico
 
 # MLX model cache
 ~/.cache/huggingface/

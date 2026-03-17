@@ -1,0 +1,339 @@
+# Ski Jumping Monitor Configuration
+# Detects and clips all appearances of Slovenian ski jumpers from TV broadcasts
+# Usage: python main.py --config config_skijumping.yaml
+
+# Input folder for video files
+input_dir: "input"
+
+# Where to save cached transcripts (JSON)
+transcripts_dir: "transcripts"
+
+# Where to save cut video clips (organized by topic)
+clips_dir: "clips"
+
+# Where to save Excel output
+output_dir: "output"
+
+# Output Excel filename
+output_file: "ski_jumping_segments.xlsx"
+
+# Whisper model size
+whisper_model: "large-v2"
+
+# Language for transcription (sl = Slovenian)
+language: "sl"
+
+# File naming convention
+filename_format: "YYYY-MM-DD_CHANNEL_SHOWNAME"
+
+# Enable joining clips into combined videos (Run 1, Run 2, Victory Ceremony)
+join_clips: true
+
+# Global instructions for Claude
+instructions: |
+  You are analyzing a Slovenian TV broadcast of a ski jumping competition.
+  Your job is to find EVERY moment where a Slovenian ski jumper appears, is mentioned,
+  or is the focus of the broadcast.
+
+  CRITICAL RULES:
+  - Round all start and end timecodes to the nearest 5 seconds.
+  - Include the commentator's build-up/introduction of the jumper as part of the segment start
+    (e.g. when the commentator says "Na zaletišču je..." or "Naslednji je..." for a Slovenian jumper,
+    that is the start of the segment).
+  - The segment ends when the commentator moves on to the next non-Slovenian jumper or topic.
+  - Include the full jump sequence: approach, flight, landing, telemark, score announcement.
+  - If a Slovenian jumper's score/distance is discussed or compared, include that discussion.
+  - SEPARATE each individual jumper's run into its own segment — do NOT merge two different
+    Slovenian jumpers' runs into one segment even if they jump back-to-back.
+  - For interviews: start when the interviewer/reporter begins the question or introduction,
+    end when the interview segment concludes.
+  - For victory ceremonies: start when the ceremony begins (athletes walking to podium, anthem),
+    end when the ceremony coverage concludes.
+  - QUALIFICATION vs COMPETITION: Some broadcasts cover qualification rounds (kvalifikacije).
+    Qualifications are a separate event from the main competition — they typically happen
+    the day before. If the broadcast is a qualification event, ALL Slovenian jumps should be
+    tagged as "Kvalifikacije" (NOT "Skok 1. serija" or "Skok 2. serija").
+    Indicators of a qualification event: commentator says "kvalifikacije", "kvalifikacijska tekma",
+    "kvalifikacijski skok", or the broadcast title/context indicates it is qualifications.
+    In qualifications there is only ONE round of jumping — no "prva serija" / "druga serija".
+
+  SLOVENIAN SKI JUMPERS TO TRACK:
+
+  === MEN (Moški) — A Ekipa ===
+  Domen Prevc, Anže Lanišek, Timi Zajc, Lovro Kos, Žak Mogel, Žiga Jančar
+
+  === MEN (Moški) — B Ekipa ===
+  Žiga Jelar, Maksim Bartolj, Jaka Drinovec, Taj Ekart, Rok Masle, Rok Oblak, Nejc Toporiš, Matija Vidic
+
+  === MEN (Moški) — Notable/Former (may still appear) ===
+  Peter Prevc, Cene Prevc, Tilen Bartol, Mark Hafnar, Rok Justin
+
+  === WOMEN (Ženske) — A Ekipa ===
+  Nika Prevc, Taja Bodlaj, Tina Erzar, Ema Klinec, Katra Komar, Nika Vodan
+
+  === WOMEN (Ženske) — B Ekipa ===
+  Ajda Košnjek, Jerica Jesenko, Tinkara Komar, Taja Košir, Maja Kovačič, Lara Logar, Urša Vidmar
+
+  === WOMEN (Ženske) — Notable/Former (may still appear) ===
+  Urša Bogataj, Jerneja Brecl, Špela Rogelj
+
+  === COACHES & STAFF (include if interviewed or featured) ===
+  Robert Hrgota (head coach men), Zoran Zupančič, Jurij Tepeš
+
+  COMMON SLOVENIAN COMMENTATOR PHRASES TO LISTEN FOR:
+  - "Na zaletišču je..." (On the inrun is...)
+  - "Slovenski skakalec/skakalka" (Slovenian jumper)
+  - "Naš tekmovalec/tekmovalka" (Our competitor)
+  - "Slovenska zastava" (Slovenian flag)
+  - "Slovenija" when discussing standings/results
+  - Distance announcements followed by Slovenian names
+  - "Točke" (points), "ocena" (score) in context of Slovenian jumpers
+  - "Intervju" or when a reporter addresses a Slovenian jumper
+  - "Podelitev medalj/nagrad" (medal/award ceremony)
+
+# Per-show transcription rules
+show_rules:
+  "šport":
+    transcribe_last_minutes: 30
+  "sport":
+    transcribe_last_minutes: 30
+
+# Topics to detect
+topics:
+  - name: "Skok 1. serija"
+    description: >
+      First round (1. serija / prva serija) jump of a Slovenian ski jumper.
+      This is an individual jump during the first competition round.
+      The segment should cover: commentator introducing the jumper on the inrun,
+      the jump itself (flight, landing), and the immediate score/distance discussion.
+    keywords:
+      - "prva serija"
+      - "1. serija"
+      - "prvi skok"
+      - "prva runda"
+      - "Domen Prevc"
+      - "Anže Lanišek"
+      - "Timi Zajc"
+      - "Lovro Kos"
+      - "Žak Mogel"
+      - "Žiga Jančar"
+      - "Žiga Jelar"
+      - "Peter Prevc"
+      - "Cene Prevc"
+      - "Nika Prevc"
+      - "Ema Klinec"
+      - "Taja Bodlaj"
+      - "Tina Erzar"
+      - "Katra Komar"
+      - "Nika Vodan"
+      - "Ajda Košnjek"
+      - "Urša Bogataj"
+      - "skakalec"
+      - "skakalka"
+      - "zaletišče"
+      - "doskočišče"
+      - "telemark"
+    instructions: >
+      Only tag jumps that are clearly in the FIRST round of competition.
+      Indicators: commentator says "prva serija", "prvi skok", "1. serija",
+      or it is contextually the first round (early in the competition, before any
+      mention of "druga serija" or "finalna serija").
+      Each jumper's run is a SEPARATE segment.
+      Set 'Tekmovalec' to the jumper's full name.
+      Set 'Spol' to 'm' for men, 'z' for women.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Full name of the Slovenian ski jumper (e.g. 'Domen Prevc', 'Nika Prevc')"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women"
+
+  - name: "Skok 2. serija"
+    description: >
+      Second round (2. serija / druga serija / finalna serija) jump of a Slovenian ski jumper.
+      This is an individual jump during the second/final competition round.
+      The segment should cover the same as first round: introduction, jump, score.
+    keywords:
+      - "druga serija"
+      - "2. serija"
+      - "drugi skok"
+      - "finalna serija"
+      - "finale"
+      - "Domen Prevc"
+      - "Anže Lanišek"
+      - "Timi Zajc"
+      - "Lovro Kos"
+      - "Žak Mogel"
+      - "Žiga Jančar"
+      - "Žiga Jelar"
+      - "Peter Prevc"
+      - "Cene Prevc"
+      - "Nika Prevc"
+      - "Ema Klinec"
+      - "Taja Bodlaj"
+      - "Tina Erzar"
+      - "Katra Komar"
+      - "Nika Vodan"
+      - "Ajda Košnjek"
+      - "Urša Bogataj"
+      - "skakalec"
+      - "skakalka"
+    instructions: >
+      Only tag jumps that are clearly in the SECOND/FINAL round of competition.
+      Indicators: commentator says "druga serija", "drugi skok", "2. serija",
+      "finalna serija", or it is contextually the second round (later in the competition,
+      after first round results have been discussed, "top 30" jumpers remaining).
+      Each jumper's run is a SEPARATE segment.
+      Set 'Tekmovalec' to the jumper's full name.
+      Set 'Spol' to 'm' for men, 'z' for women.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Full name of the Slovenian ski jumper (e.g. 'Domen Prevc', 'Nika Prevc')"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women"
+
+  - name: "Kvalifikacije"
+    description: >
+      Qualification round jump of a Slovenian ski jumper.
+      Qualifications (kvalifikacije) are a separate event — usually held the day before
+      the main competition. Each jumper gets ONE jump to qualify for the competition.
+      There is no "prva serija" or "druga serija" in qualifications.
+    keywords:
+      - "kvalifikacije"
+      - "kvalifikacijski"
+      - "kvalifikacijska tekma"
+      - "kvalifikacijski skok"
+      - "Domen Prevc"
+      - "Anže Lanišek"
+      - "Timi Zajc"
+      - "Lovro Kos"
+      - "Žak Mogel"
+      - "Žiga Jančar"
+      - "Žiga Jelar"
+      - "Peter Prevc"
+      - "Cene Prevc"
+      - "Nika Prevc"
+      - "Ema Klinec"
+      - "Taja Bodlaj"
+      - "Tina Erzar"
+      - "Katra Komar"
+      - "Nika Vodan"
+      - "Ajda Košnjek"
+      - "Urša Bogataj"
+      - "skakalec"
+      - "skakalka"
+    instructions: >
+      ONLY use this category when the broadcast is clearly a QUALIFICATION event,
+      not the main competition. Indicators: commentator says "kvalifikacije",
+      broadcast title mentions "kvalifikacije", or there is only one round of jumping
+      with no mention of "prva/druga serija".
+      Do NOT use this for first-round jumps in a main competition — those go under "Skok 1. serija".
+      Each jumper's run is a SEPARATE segment.
+      Set 'Tekmovalec' to the jumper's full name.
+      Set 'Spol' to 'm' for men, 'z' for women.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Full name of the Slovenian ski jumper (e.g. 'Domen Prevc', 'Nika Prevc')"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women"
+
+  - name: "Podelitev"
+    description: >
+      Victory ceremony / medal ceremony / flower ceremony where at least one
+      Slovenian ski jumper finished in the top 3 (1st, 2nd, or 3rd place).
+      This includes: walking to the podium, standing on the podium, national anthem,
+      medal presentation, flower ceremony, celebration.
+    keywords:
+      - "podelitev"
+      - "podelitev medalj"
+      - "zmagovalec"
+      - "zmagovalka"
+      - "podium"
+      - "medalja"
+      - "zlata medalja"
+      - "srebrna medalja"
+      - "bronasta medalja"
+      - "prvo mesto"
+      - "drugo mesto"
+      - "tretje mesto"
+      - "slavje"
+      - "himna"
+      - "zastava"
+    instructions: >
+      ONLY tag this if a Slovenian jumper is ON THE PODIUM (1st, 2nd, or 3rd place).
+      Do NOT tag a ceremony where no Slovenian is in the top 3.
+      Include the full ceremony from start to finish.
+      Set 'Tekmovalec' to the Slovenian jumper's name who is on the podium.
+      Set 'Uvrstitev' to their placement: '1', '2', or '3'.
+      Set 'Spol' to 'm' for men, 'z' for women.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Full name of the Slovenian ski jumper on the podium"
+      - name: "Uvrstitev"
+        description: "Placement: '1' for gold/win, '2' for silver/second, '3' for bronze/third"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women"
+
+  - name: "Intervju"
+    description: >
+      Interview with a Slovenian ski jumper, coach, or team staff member.
+      This includes: post-jump flash interviews, mixed zone interviews, press conferences,
+      studio interviews, reporter segments where a Slovenian jumper speaks.
+    keywords:
+      - "intervju"
+      - "pogovor"
+      - "izjava"
+      - "mixed zona"
+      - "Robert Hrgota"
+      - "Zoran Zupančič"
+      - "Jurij Tepeš"
+      - "Domen Prevc"
+      - "Anže Lanišek"
+      - "Timi Zajc"
+      - "Lovro Kos"
+      - "Nika Prevc"
+      - "Ema Klinec"
+      - "povedal"
+      - "povedala"
+      - "dejal"
+      - "dejala"
+    instructions: >
+      Tag any segment where a Slovenian ski jumper or team staff member is being
+      interviewed or giving a statement. Include the reporter's question/introduction
+      as part of the segment.
+      Set 'Tekmovalec' to the person being interviewed.
+      Set 'Spol' to 'm' for men, 'z' for women, or leave empty for coaching staff.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Full name of the person being interviewed"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women, empty for staff"
+
+  - name: "Splošno"
+    description: >
+      Any other appearance of Slovenian ski jumpers that doesn't fit the above categories.
+      This includes: results recap discussing Slovenian positions, team event coverage,
+      training footage, preview segments about Slovenian jumpers, analysis of Slovenian
+      jumpers' technique or form, standings/rankings discussion featuring Slovenians.
+    keywords:
+      - "Slovenija"
+      - "slovenski"
+      - "slovenska ekipa"
+      - "skupni seštevek"
+      - "klasifikacija"
+      - "uvrstitev"
+      - "ekipna tekma"
+      - "trening"
+      - "kvalifikacije"
+      - "skakalci"
+      - "skakalke"
+    instructions: >
+      Use this category as a catch-all for Slovenian ski jumping content that
+      doesn't fit neatly into Run 1, Run 2, Victory Ceremony, or Interview.
+      Set 'Tekmovalec' to the jumper's name if a specific jumper is featured,
+      or 'Ekipa' if it's about the team generally.
+      Set 'Spol' to 'm' for men, 'z' for women, 'mes' if mixed.
+    extra_fields:
+      - name: "Tekmovalec"
+        description: "Name of featured jumper, or 'Ekipa' for team coverage"
+      - name: "Spol"
+        description: "Gender: 'm' for men, 'z' for women, 'mes' for mixed"

@@ -1,11 +1,11 @@
 """
 Transcription module using faster-whisper.
 Extracts audio from video, transcribes with timestamps, caches results as JSON.
+Uses NVIDIA GPU (CUDA) when available, falls back to CPU.
 """
 
 import json
 import os
-import platform
 import subprocess
 import tempfile
 from pathlib import Path
@@ -15,18 +15,6 @@ from tqdm import tqdm
 from paths import get_ffmpeg_path, get_ffprobe_path
 
 
-def _is_apple_silicon() -> bool:
-    return platform.system() == "Darwin" and platform.machine() == "arm64"
-
-
-def _has_mlx() -> bool:
-    try:
-        import mlx_whisper  # noqa: F401
-        return True
-    except ImportError:
-        return False
-
-
 _model_cache: dict = {}
 
 
@@ -34,24 +22,15 @@ def get_model(model_size: str):
     """Load and cache the Whisper model with optimal settings for the current hardware."""
     if model_size not in _model_cache:
         print(f"Loading Whisper model '{model_size}'...")
-        cpu_threads = min(os.cpu_count() or 4, 8)
-        if _is_apple_silicon() and _has_mlx():
-            # mlx-whisper uses Apple Neural Engine + Metal GPU — much faster on M1/M2/M3
-            print("    Using mlx-whisper (Apple Neural Engine)")
-            _model_cache[model_size] = "mlx"  # mlx_whisper is called directly, no model object
-        elif _is_apple_silicon():
-            from faster_whisper import WhisperModel
+        from faster_whisper import WhisperModel
+        try:
+            _model_cache[model_size] = WhisperModel(model_size, device="cuda", compute_type="float16")
+            print("    Using NVIDIA GPU (CUDA)")
+        except Exception:
+            cpu_threads = min(os.cpu_count() or 4, 8)
             _model_cache[model_size] = WhisperModel(model_size, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
-        else:
-            from faster_whisper import WhisperModel
-            try:
-                _model_cache[model_size] = WhisperModel(model_size, device="cuda", compute_type="float16")
-                print("    Using NVIDIA GPU (CUDA)")
-            except Exception:
-                _model_cache[model_size] = WhisperModel(model_size, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
-                print(f"    Using CPU ({cpu_threads} threads)")
-        if _model_cache[model_size] != "mlx":
-            print("Model loaded.")
+            print(f"    Using CPU ({cpu_threads} threads)")
+        print("Model loaded.")
     return _model_cache[model_size]
 
 
@@ -126,41 +105,24 @@ def transcribe_video(
         print("    Transcribing (this may take a while)...")
         model = get_model(model_size)
 
-        if model == "mlx":
-            import mlx_whisper
-            # mlx-whisper model name format: "mlx-community/whisper-large-v2-mlx"
-            mlx_model_name = f"mlx-community/whisper-{model_size}-mlx"
-            result = mlx_whisper.transcribe(
-                str(audio_path),
-                path_or_hf_repo=mlx_model_name,
-                language=language,
-            )
-            segments = []
-            for seg in result.get("segments", []):
+        segments_gen, info = model.transcribe(
+            str(audio_path),
+            language=language,
+            beam_size=5,
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 500},
+        )
+        segments = []
+        with tqdm(total=info.duration, unit="s", unit_scale=True, desc="    Progress") as pbar:
+            prev_end = 0.0
+            for seg in segments_gen:
                 segments.append({
-                    "start": round(seg["start"] + start_offset, 2),
-                    "end": round(seg["end"] + start_offset, 2),
-                    "text": seg["text"].strip(),
+                    "start": round(seg.start + start_offset, 2),
+                    "end": round(seg.end + start_offset, 2),
+                    "text": seg.text.strip(),
                 })
-        else:
-            segments_gen, info = model.transcribe(
-                str(audio_path),
-                language=language,
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 500},
-            )
-            segments = []
-            with tqdm(total=info.duration, unit="s", unit_scale=True, desc="    Progress") as pbar:
-                prev_end = 0.0
-                for seg in segments_gen:
-                    segments.append({
-                        "start": round(seg.start + start_offset, 2),
-                        "end": round(seg.end + start_offset, 2),
-                        "text": seg.text.strip(),
-                    })
-                    pbar.update(seg.end - prev_end)
-                    prev_end = seg.end
+                pbar.update(seg.end - prev_end)
+                prev_end = seg.end
 
         # Cache transcript
         transcripts_dir.mkdir(parents=True, exist_ok=True)

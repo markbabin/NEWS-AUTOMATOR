@@ -200,16 +200,6 @@ def process_video(
         )
         print(f"  Created {clips_count} clip(s) in {clips_dir}/")
 
-        # Step 5: Join clips into combined videos (if enabled in config)
-        if config.get("join_clips"):
-            from join_clips import join_all
-            print(f"  Joining clips into combined videos...")
-            joined = join_all(clips_dir=clips_dir, date_str=date_str)
-            if joined:
-                print(f"  Combined videos:")
-                for label, path in joined.items():
-                    print(f"    {label}: {path.name}")
-
     return rows_added
 
 

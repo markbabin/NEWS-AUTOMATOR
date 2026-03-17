@@ -1,0 +1,30 @@
+Windows Build Setup
+===================
+
+This folder contains Windows-specific files for News Monitor.
+It uses faster-whisper with NVIDIA CUDA for GPU-accelerated transcription.
+
+Files in this folder (override the macOS versions in the parent directory):
+  - transcribe.py   — CUDA-only whisper (no mlx/Apple Silicon code)
+  - paths.py         — Windows paths (%APPDATA%, .exe binaries)
+  - gui.py           — Windows GUI (Consolas font, os.startfile)
+  - build.py         — Windows-only PyInstaller build
+  - requirements.txt — includes nvidia-cublas-cu12 and nvidia-cudnn-cu12
+
+Shared files (copy from parent directory):
+  - main.py
+  - detect_topics.py
+  - excel_output.py
+  - clip_segments.py
+  - config.yaml
+
+Steps to build on Windows:
+  1. Copy the shared files listed above into this folder
+  2. Install Python 3.11+
+  3. Install NVIDIA drivers (latest Game Ready or Studio driver)
+  4. pip install -r requirements.txt
+  5. Download ffmpeg.exe and ffprobe.exe from https://ffmpeg.org
+     and place them in this folder
+  6. (Optional) place icon.ico in this folder
+  7. python build.py
+  8. Output: dist/News Monitor/News Monitor.exe
